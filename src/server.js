@@ -1,10 +1,12 @@
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const session = require('express-session');
 const passport = require('passport');
 const DiscordStrategy = require('passport-discord').Strategy;
 const multer = require('multer');
+const rateLimit = require('express-rate-limit');
 const { readState, addMarker, addImage } = require('./stateStore');
 
 const app = express();
@@ -56,10 +58,35 @@ app.use(
     secret: process.env.SESSION_SECRET || 'change-this-session-secret',
     resave: false,
     saveUninitialized: false,
+    cookie: {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+    },
   }),
 );
 app.use(passport.initialize());
 app.use(passport.session());
+app.use((req, _res, next) => {
+  if (req.session && !req.session.csrfToken) {
+    req.session.csrfToken = crypto.randomUUID();
+  }
+  next();
+});
+
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const writeLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 80,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 
 if (process.env.NODE_ENV === 'test') {
   app.use((req, _res, next) => {
@@ -76,7 +103,7 @@ const upload = multer({
     destination: (_req, _file, cb) => cb(null, uploadsDir),
     filename: (_req, file, cb) => {
       const extension = path.extname(file.originalname).toLowerCase();
-      cb(null, `${Date.now()}-${Math.random().toString(16).slice(2)}${extension || '.png'}`);
+      cb(null, `${crypto.randomUUID()}${extension || '.png'}`);
     },
   }),
   fileFilter: (_req, file, cb) => {
@@ -97,7 +124,15 @@ function requireAuth(req, res, next) {
   return next();
 }
 
-app.get('/auth/discord', (req, res, next) => {
+function requireCsrf(req, res, next) {
+  const token = req.get('x-csrf-token');
+  if (!token || !req.session || token !== req.session.csrfToken) {
+    return res.status(403).json({ error: 'Invalid CSRF token' });
+  }
+  return next();
+}
+
+app.get('/auth/discord', authLimiter, (req, res, next) => {
   if (!hasDiscordCredentials) {
     return res.status(500).send('Discord OAuth is not configured on the server.');
   }
@@ -107,6 +142,7 @@ app.get('/auth/discord', (req, res, next) => {
 
 app.get(
   '/auth/discord/callback',
+  authLimiter,
   (req, res, next) => {
     if (!hasDiscordCredentials) {
       return res.status(500).send('Discord OAuth is not configured on the server.');
@@ -128,7 +164,7 @@ app.get(
   },
 );
 
-app.post('/auth/logout', (req, res) => {
+app.post('/auth/logout', requireCsrf, (req, res) => {
   req.logout(() => {
     req.session.destroy(() => {
       res.status(204).send();
@@ -148,6 +184,7 @@ app.get('/api/me', (req, res) => {
   return res.json({
     authenticated: true,
     oauthConfigured: hasDiscordCredentials,
+    csrfToken: req.session.csrfToken,
     user: {
       id: req.user.id,
       username: req.user.username,
@@ -161,7 +198,7 @@ app.get('/api/state', requireAuth, (_req, res) => {
   res.json(readState());
 });
 
-app.post('/api/markers', requireAuth, (req, res) => {
+app.post('/api/markers', writeLimiter, requireAuth, requireCsrf, (req, res) => {
   const { lat, lng, label } = req.body;
   const latitude = Number(lat);
   const longitude = Number(lng);
@@ -171,7 +208,7 @@ app.post('/api/markers', requireAuth, (req, res) => {
   }
 
   const marker = {
-    id: Date.now().toString(),
+    id: crypto.randomUUID(),
     lat: latitude,
     lng: longitude,
     label: typeof label === 'string' ? label.trim().slice(0, 120) : '',
@@ -183,7 +220,7 @@ app.post('/api/markers', requireAuth, (req, res) => {
   return res.status(201).json(marker);
 });
 
-app.post('/api/images', requireAuth, upload.single('image'), (req, res) => {
+app.post('/api/images', writeLimiter, requireAuth, requireCsrf, upload.single('image'), (req, res) => {
   const { lat, lng, label } = req.body;
   const latitude = Number(lat);
   const longitude = Number(lng);
@@ -197,7 +234,7 @@ app.post('/api/images', requireAuth, upload.single('image'), (req, res) => {
   }
 
   const image = {
-    id: Date.now().toString(),
+    id: crypto.randomUUID(),
     lat: latitude,
     lng: longitude,
     label: typeof label === 'string' ? label.trim().slice(0, 120) : '',

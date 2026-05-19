@@ -11,6 +11,7 @@ const markerLat = document.getElementById('marker-lat');
 const markerLng = document.getElementById('marker-lng');
 const imageLat = document.getElementById('image-lat');
 const imageLng = document.getElementById('image-lng');
+let csrfToken = '';
 
 const map = L.map('map').setView([-23.55, -46.63], 13);
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -37,7 +38,10 @@ loginBtn.addEventListener('click', () => {
 });
 
 logoutBtn.addEventListener('click', async () => {
-  await fetch('/auth/logout', { method: 'POST' });
+  await fetch('/auth/logout', {
+    method: 'POST',
+    headers: { 'x-csrf-token': csrfToken },
+  });
   window.location.reload();
 });
 
@@ -96,7 +100,10 @@ markerForm.addEventListener('submit', async (event) => {
 
   const response = await fetch('/api/markers', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'x-csrf-token': csrfToken,
+    },
     body: JSON.stringify({
       lat: markerLat.value,
       lng: markerLng.value,
@@ -131,6 +138,7 @@ imageForm.addEventListener('submit', async (event) => {
 
   const response = await fetch('/api/images', {
     method: 'POST',
+    headers: { 'x-csrf-token': csrfToken },
     body: formData,
   });
 
@@ -161,6 +169,7 @@ async function bootstrap() {
   }
 
   authStatus.textContent = `Logado como ${me.user.username} (${me.user.id})`;
+  csrfToken = me.csrfToken;
   controls.hidden = false;
   loginBtn.hidden = true;
   logoutBtn.hidden = false;

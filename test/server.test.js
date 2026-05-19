@@ -17,6 +17,11 @@ test.beforeEach(() => {
   resetState();
 });
 
+async function fetchCsrf(agent, discordId) {
+  const meResponse = await agent.get('/api/me').set('x-test-discord-id', discordId);
+  return meResponse.body.csrfToken;
+}
+
 test('blocks unauthenticated access to map state', async () => {
   const response = await request(app).get('/api/state');
   assert.equal(response.statusCode, 401);
@@ -29,15 +34,18 @@ test('blocks unauthorized discord ids', async () => {
 
 test('allows authorized discord id to create marker and read shared state', async () => {
   const allowedId = authorizedDiscordIds[0];
+  const agent = request.agent(app);
+  const csrfToken = await fetchCsrf(agent, allowedId);
 
-  const markerResponse = await request(app)
+  const markerResponse = await agent
     .post('/api/markers')
     .set('x-test-discord-id', allowedId)
+    .set('x-csrf-token', csrfToken)
     .send({ lat: -23.5, lng: -46.6, label: 'Centro' });
 
   assert.equal(markerResponse.statusCode, 201);
 
-  const stateResponse = await request(app)
+  const stateResponse = await agent
     .get('/api/state')
     .set('x-test-discord-id', allowedId);
 
@@ -49,10 +57,13 @@ test('allows authorized discord id to create marker and read shared state', asyn
 test('accepts png image upload only', async () => {
   const allowedId = authorizedDiscordIds[0];
   const pngPath = path.join(__dirname, 'fixtures', 'tiny.png');
+  const agent = request.agent(app);
+  const csrfToken = await fetchCsrf(agent, allowedId);
 
-  const response = await request(app)
+  const response = await agent
     .post('/api/images')
     .set('x-test-discord-id', allowedId)
+    .set('x-csrf-token', csrfToken)
     .field('lat', '-23.5')
     .field('lng', '-46.6')
     .field('label', 'Sprite')
@@ -60,7 +71,7 @@ test('accepts png image upload only', async () => {
 
   assert.equal(response.statusCode, 201);
 
-  const stateResponse = await request(app)
+  const stateResponse = await agent
     .get('/api/state')
     .set('x-test-discord-id', allowedId);
 
