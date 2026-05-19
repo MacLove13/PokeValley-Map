@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PokeValley Map</title>
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div id="auth-panel">
+      <h1>PokeValley Map</h1>
+      <p id="auth-status">Carregando autenticação...</p>
+      <button id="login-btn" hidden>Login com Discord</button>
+      <button id="logout-btn" hidden>Sair</button>
+    </div>
+
+    <div id="controls" hidden>
+      <h2>Controles do mapa</h2>
+      <label><input type="checkbox" id="toggle-markers" checked /> Ver Marcadores</label>
+      <label><input type="checkbox" id="toggle-images" checked /> Ver Imagens</label>
+      <p>Clique no mapa para definir latitude/longitude para novo item.</p>
+
+      <form id="marker-form">
+        <h3>Adicionar marcador</h3>
+        <label>Latitude <input id="marker-lat" type="number" step="any" required /></label>
+        <label>Longitude <input id="marker-lng" type="number" step="any" required /></label>
+        <label>Rótulo <input id="marker-label" type="text" maxlength="120" /></label>
+        <button type="submit">Salvar marcador</button>
+      </form>
+
+      <form id="image-form" enctype="multipart/form-data">
+        <h3>Adicionar imagem PNG</h3>
+        <label>Latitude <input id="image-lat" type="number" step="any" required /></label>
+        <label>Longitude <input id="image-lng" type="number" step="any" required /></label>
+        <label>Rótulo <input id="image-label" type="text" maxlength="120" /></label>
+        <label>Arquivo PNG <input id="image-file" type="file" accept="image/png" required /></label>
+        <button type="submit">Salvar imagem</button>
+      </form>
+    </div>
+
+    <div id="map"></div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="/app.js"></script>
+  </body>
+</html>
