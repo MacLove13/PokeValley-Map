@@ -1,4 +1,6 @@
 node_modules/
+.env
 uploads/*
 !uploads/.gitkeep
-.env
+data/map-state.json
+.git

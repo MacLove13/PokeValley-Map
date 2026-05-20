@@ -29,6 +29,22 @@ npm start
 
 Abra `http://localhost:3000`.
 
+## Docker
+
+Copie o arquivo de exemplo e preencha com suas credenciais:
+
+```bash
+cp .env.example .env
+```
+
+Inicie com Docker Compose:
+
+```bash
+docker compose up
+```
+
+Abra `http://localhost:3000`. Os dados persistem nas pastas `data/` e `uploads/` do projeto.
+
 ## Testes
 
 ```bash
