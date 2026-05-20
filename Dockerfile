@@ -4,11 +4,11 @@ WORKDIR /app
 
 COPY package*.json ./
 
+ENV NODE_ENV=production
 RUN npm ci --omit=dev
 
-COPY . .
-
-RUN mkdir -p uploads data
+COPY src/ ./src/
+COPY public/ ./public/
 
 EXPOSE 3000
 
